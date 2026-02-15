@@ -6,16 +6,21 @@
 
 - 爬取天瓏書店中文新書（含書名、封面、價格、折扣、連結）
 - 自動分頁抓取所有新書
+- **歷史記錄比對**：與上次爬取結果比對，標記新上架書籍（NEW badge）
+- **書籍詳情抓取**：自動抓取作者、出版社、出版日、簡介、分類（含快取機制）
+- **7 日內新書過濾**：僅顯示出版日期在 7 天內的書籍
+- **排序功能**：依價格、折扣、出版日排序
 - 產生響應式靜態網頁，透過 GitHub Pages 展示
-- 每周自動寄送新書通知 Email
+- 每周自動寄送新書通知 Email（含 NEW 標記）
 
 ## 專案結構
 
 ```
-├── scraper.py              # 爬蟲主程式
-├── generate_page.py        # 產生 GitHub Pages HTML
-├── send_email.py           # 寄信程式
+├── scraper.py              # 爬蟲主程式（含歷史比對 + 詳情抓取）
+├── generate_page.py        # 產生 GitHub Pages HTML（含排序 + 7 日過濾）
+├── send_email.py           # 寄信程式（含 NEW 標記）
 ├── books.json              # 爬蟲結果 (自動產生)
+├── books_previous.json     # 上次爬蟲結果備份 (自動產生, gitignored)
 ├── docs/
 │   └── index.html          # GitHub Pages 頁面 (自動產生)
 ├── .github/
@@ -33,8 +38,11 @@
 # 安裝依賴
 uv sync
 
-# 執行爬蟲
+# 執行爬蟲（完整，含詳情抓取）
 uv run scraper.py
+
+# 執行爬蟲（快速，跳過詳情抓取）
+uv run scraper.py --skip-details
 
 # 產生靜態頁面
 uv run generate_page.py

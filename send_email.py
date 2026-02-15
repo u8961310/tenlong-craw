@@ -23,13 +23,20 @@ def build_html(books: list[dict]) -> str:
                 f'border-radius:3px;font-size:12px">{book["discount"]}</span> '
             )
 
+        new_html = ""
+        if book.get("is_new"):
+            new_html = (
+                '<span style="background:#e74c3c;color:#fff;padding:2px 6px;'
+                'border-radius:3px;font-size:12px;margin-right:4px">NEW</span> '
+            )
+
         rows += f"""\
 <tr style="border-bottom:1px solid #eee">
   <td style="padding:8px;width:80px">
     <img src="{book.get('image', '')}" width="70" style="display:block">
   </td>
   <td style="padding:8px">
-    {discount_html}
+    {new_html}{discount_html}
     <a href="{book['url']}" style="color:#2c3e50;text-decoration:none;font-weight:600">
       {book['title']}
     </a><br>

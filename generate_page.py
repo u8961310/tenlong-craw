@@ -39,6 +39,27 @@ TEMPLATE = """\
     margin-bottom: 1rem;
     color: #666;
   }
+
+  /* 排序工具列 */
+  .toolbar {
+    margin-bottom: 1.2rem;
+  }
+  .toolbar-section {
+    margin-bottom: 0.8rem;
+  }
+  .toolbar-section label {
+    font-weight: 600;
+    margin-right: 0.5rem;
+    font-size: 0.9rem;
+  }
+  .sort-select {
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 0.9rem;
+    background: #fff;
+  }
+
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -55,6 +76,7 @@ TEMPLATE = """\
   }
   .card:hover { transform: translateY(-4px); }
   .card a { text-decoration: none; color: inherit; }
+  .card-img-wrapper { position: relative; }
   .card-img {
     width: 100%;
     height: 280px;
@@ -71,6 +93,24 @@ TEMPLATE = """\
   .card-title {
     font-size: 0.95rem;
     font-weight: 600;
+    margin-bottom: 0.5rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card-meta {
+    font-size: 0.78rem;
+    color: #888;
+    margin-bottom: 0.4rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card-desc {
+    font-size: 0.78rem;
+    color: #666;
     margin-bottom: 0.5rem;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -100,6 +140,18 @@ TEMPLATE = """\
     margin-bottom: 0.4rem;
     align-self: flex-start;
   }
+  .badge-new {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: #e74c3c;
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    z-index: 1;
+  }
   @media (max-width: 600px) {
     .grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
     .card-img { height: 200px; }
@@ -112,15 +164,47 @@ TEMPLATE = """\
   <p>最後更新: {{ updated_at }}</p>
 </header>
 <div class="container">
-  <p class="stats">共 {{ books | length }} 本書</p>
-  <div class="grid">
+  <p class="stats">共 {{ books | length }} 本書{% if new_count %} ({{ new_count }} 本新書){% endif %}</p>
+
+  <!-- 排序 -->
+  <div class="toolbar">
+    <div class="toolbar-section">
+      <label>排序:</label>
+      <select class="sort-select" id="sortSelect" onchange="sortBooks()">
+        <option value="default">預設</option>
+        <option value="price-asc">價格 低→高</option>
+        <option value="price-desc">價格 高→低</option>
+        <option value="discount-asc">折扣 低→高</option>
+        <option value="date-desc">出版日 新→舊</option>
+        <option value="date-asc">出版日 舊→新</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="grid" id="bookGrid">
     {% for book in books %}
-    <div class="card">
+    <div class="card"
+         data-price="{{ book.sale_price | default('0') }}"
+         data-discount="{{ book.discount | default('') }}"
+         data-date="{{ book.date_published | default('') }}">
       <a href="{{ book.url }}" target="_blank" rel="noopener">
-        <img class="card-img" src="{{ book.image }}" alt="{{ book.title }}" loading="lazy">
+        <div class="card-img-wrapper">
+          <img class="card-img" src="{{ book.image }}" alt="{{ book.title }}" loading="lazy">
+          {% if book.is_new %}<span class="badge-new">NEW</span>{% endif %}
+        </div>
         <div class="card-body">
           {% if book.discount %}<span class="badge">{{ book.discount }}</span>{% endif %}
           <div class="card-title">{{ book.title }}</div>
+          {% if book.author or book.publisher %}
+          <div class="card-meta">
+            {% if book.author %}{{ book.author }}{% endif %}
+            {% if book.author and book.publisher %} / {% endif %}
+            {% if book.publisher %}{{ book.publisher }}{% endif %}
+          </div>
+          {% endif %}
+          {% if book.description %}
+          <div class="card-desc">{{ book.description }}</div>
+          {% endif %}
           <div class="card-price">
             {% if book.original_price %}<span class="price-original">NT$ {{ book.original_price }}</span>{% endif %}
             {% if book.sale_price %}<span class="price-sale">NT$ {{ book.sale_price }}</span>{% endif %}
@@ -131,6 +215,37 @@ TEMPLATE = """\
     {% endfor %}
   </div>
 </div>
+
+<script>
+// === 排序 ===
+function sortBooks() {
+  var grid = document.getElementById('bookGrid');
+  var cards = Array.from(grid.querySelectorAll('.card'));
+  var sortVal = document.getElementById('sortSelect').value;
+
+  if (sortVal === 'default') return;
+
+  cards.sort(function(a, b) {
+    if (sortVal === 'price-asc' || sortVal === 'price-desc') {
+      var pa = parseInt((a.dataset.price || '0').replace(/,/g, ''), 10);
+      var pb = parseInt((b.dataset.price || '0').replace(/,/g, ''), 10);
+      return sortVal === 'price-asc' ? pa - pb : pb - pa;
+    }
+    if (sortVal === 'discount-asc') {
+      var da = parseInt(((a.dataset.discount || '').match(/(\\d+)/) || [0,0])[1], 10);
+      var db = parseInt(((b.dataset.discount || '').match(/(\\d+)/) || [0,0])[1], 10);
+      return da - db;
+    }
+    if (sortVal === 'date-desc' || sortVal === 'date-asc') {
+      var ta = a.dataset.date || '';
+      var tb = b.dataset.date || '';
+      return sortVal === 'date-desc' ? tb.localeCompare(ta) : ta.localeCompare(tb);
+    }
+    return 0;
+  });
+  cards.forEach(function(card) { grid.appendChild(card); });
+}
+</script>
 </body>
 </html>
 """
@@ -141,10 +256,31 @@ def main():
         books = json.load(f)
 
     tz = timezone(timedelta(hours=8))
-    updated_at = datetime.now(tz).strftime("%Y-%m-%d %H:%M (台灣時間)")
+    now = datetime.now(tz)
+    updated_at = now.strftime("%Y-%m-%d %H:%M (台灣時間)")
+    cutoff = (now - timedelta(days=7)).strftime("%Y-%m-%d")
+
+    # 過濾掉出版日期超過 7 天的書（無日期的保留）
+    filtered = []
+    for book in books:
+        dp = book.get("date_published", "")
+        if dp and dp < cutoff:
+            continue
+        filtered.append(book)
+
+    total_before = len(books)
+    books = filtered
+    print(f"日期篩選: {total_before} → {len(books)} 本 (排除出版日 < {cutoff})")
+
+    # 計算新書數
+    new_count = sum(1 for b in books if b.get("is_new"))
 
     template = Template(TEMPLATE)
-    html = template.render(books=books, updated_at=updated_at)
+    html = template.render(
+        books=books,
+        updated_at=updated_at,
+        new_count=new_count,
+    )
 
     os.makedirs("docs", exist_ok=True)
     with open("docs/index.html", "w", encoding="utf-8") as f:
